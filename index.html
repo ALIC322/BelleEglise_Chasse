@@ -13,7 +13,8 @@ main{width:min(100%,600px);margin:auto;padding:10px 8px 24px}
 h1{font-family:Georgia,serif;font-size:clamp(1.15rem,4.7vw,2rem);margin:4px 0 8px;color:#f7d98b;text-shadow:0 3px 0 #4b2a16}
 p{margin:4px 0 10px}
 .stage{position:relative;width:min(100%,460px);aspect-ratio:2/3;margin:0 auto 10px;overflow:hidden;isolation:isolate;background:#243b28}
-#video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#243b28;transform:scaleX(-1)}
+#videoBg{position:absolute;inset:-6%;width:112%;height:112%;object-fit:cover;filter:blur(22px) brightness(.72);transform:scale(1.04);}
+#video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:transparent;transform:scaleX(-1)}
 #frame{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none}
 button.action,.download{border:2px solid #e5bd67;border-radius:12px;background:linear-gradient(#a84625,#702719);color:#fff4d7;padding:11px 16px;min-height:46px;font-weight:800;font-size:1rem;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
 button.alt{background:linear-gradient(#587b43,#304b2c)}
@@ -31,6 +32,7 @@ footer{color:#aebc9e;font-size:.75rem;margin-top:18px}
   <h1>CHASSE AU TRÉSOR DE BELLE ÉGLISE</h1>
   <p>Immortalise ton aventure préhistorique ! 🦖</p>
   <div class="stage" id="stage">
+    <video id="videoBg" autoplay playsinline muted aria-hidden="true"></video>
     <video id="video" autoplay playsinline muted></video>
     <img id="frame" src="cadre-chasse-tresor.png" alt="Cadre de chasse au trésor avec dinosaures">
   </div>
@@ -52,7 +54,7 @@ footer{color:#aebc9e;font-size:.75rem;margin-top:18px}
   <footer>Exploration préhistorique • Belle Église</footer>
 </main>
 <script>
-const video=document.querySelector('#video'), start=document.querySelector('#start');
+const video=document.querySelector('#video'), videoBg=document.querySelector('#videoBg'), start=document.querySelector('#start');
 const take=document.querySelector('#take'), flip=document.querySelector('#flip');
 const statusEl=document.querySelector('#status'), result=document.querySelector('#result');
 const finalImage=document.querySelector('#finalImage'), download=document.querySelector('#download');
@@ -63,11 +65,12 @@ async function openCamera(){
     if(!navigator.mediaDevices?.getUserMedia) throw new Error('unsupported');
     if(stream) stream.getTracks().forEach(t=>t.stop());
     stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing},width:{ideal:720},height:{ideal:1280},aspectRatio:{ideal:2/3}},audio:false});
-    video.srcObject=stream; await video.play();
+    video.srcObject=stream; videoBg.srcObject=stream; await Promise.all([video.play(),videoBg.play()]);
     const track=stream.getVideoTracks()[0];
     const settings=track.getSettings();
     if(settings.facingMode) facing=settings.facingMode;
     video.style.transform=facing==='user'?'scaleX(-1)':'none';
+    videoBg.style.transform=facing==='user'?'scaleX(-1) scale(1.04)':'scale(1.04)';
     take.disabled=false;flip.disabled=false;
     statusEl.textContent='Caméra prête ! Tu peux changer de caméra ou prendre la photo.';
   }catch(e){statusEl.textContent='La caméra ne s’ouvre pas. Autorise-la dans le navigateur et vérifie que le site utilise HTTPS.';}
@@ -79,12 +82,23 @@ take.addEventListener('click',()=>{
   const w=1024,h=1536,canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
   const ctx=canvas.getContext('2d');
   const vw=video.videoWidth,vh=video.videoHeight;
-  // Remplir toute la fenêtre photo : aucun bandeau vert.
-  // Le recadrage central adapte les proportions de la caméra au cadre portrait.
-  ctx.fillStyle='#243b28';ctx.fillRect(0,0,w,h);
-  const scale=Math.max(w/vw,h/vh),dw=vw*scale,dh=vh*scale,dx=(w-dw)/2,dy=(h-dh)/2;
-  ctx.save();if(facing==='user'){ctx.translate(w,0);ctx.scale(-1,1);}
-  ctx.drawImage(video,dx,dy,dw,dh);ctx.restore();
+  // Remplir le fond avec une version floutée, puis afficher la photo entière au premier plan.
+  // Ainsi, aucune bande verte et surtout aucun recadrage/zoom sur les visages.
+  const mirrored=facing==='user';
+  const bg=document.createElement('canvas');bg.width=w;bg.height=h;
+  const bgctx=bg.getContext('2d');
+  const cover=Math.max(w/vw,h/vh),bw=vw*cover,bh=vh*cover,bx=(w-bw)/2,by=(h-bh)/2;
+  bgctx.save();
+  if(mirrored){bgctx.translate(w,0);bgctx.scale(-1,1);}
+  bgctx.filter='blur(28px) brightness(0.72)';
+  bgctx.drawImage(video,bx,by,bw,bh);
+  bgctx.restore();
+  ctx.drawImage(bg,0,0,w,h);
+  const contain=Math.min(w/vw,h/vh),fw=vw*contain,fh=vh*contain,fx=(w-fw)/2,fy=(h-fh)/2;
+  ctx.save();
+  if(mirrored){ctx.translate(w,0);ctx.scale(-1,1);}
+  ctx.drawImage(video,fx,fy,fw,fh);
+  ctx.restore();
   const overlay=new Image();
   overlay.onload=()=>{
     ctx.drawImage(overlay,0,0,w,h);
