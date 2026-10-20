@@ -6,16 +6,15 @@
 <meta name="theme-color" content="#182b1d">
 <title>Chasse au trésor de Belle Église — Photobooth</title>
 <style>
-:root{--forest:#17291c;--gold:#e5bd67;--cream:#fff4d7}
+:root{--gold:#e5bd67;--cream:#fff4d7}
 *{box-sizing:border-box}
 body{margin:0;background:radial-gradient(ellipse at top,#4d6239,#17291c 70%);color:var(--cream);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;text-align:center;min-height:100vh}
 main{width:min(100%,600px);margin:auto;padding:10px 8px 24px}
 h1{font-family:Georgia,serif;font-size:clamp(1.15rem,4.7vw,2rem);margin:4px 0 8px;color:#f7d98b;text-shadow:0 3px 0 #4b2a16}
 p{margin:4px 0 10px}
-.stage{position:relative;width:min(100%,460px);aspect-ratio:2/3;margin:0 auto 10px;overflow:hidden;isolation:isolate;background:transparent}
-#videoBg{display:none}
-#video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:transparent;transform:scaleX(-1)}
-#frame{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none}
+.stage{position:relative;width:min(100%,460px);aspect-ratio:2/3;margin:0 auto 10px;overflow:hidden;isolation:isolate;background-image:url('fond-jungle.png');background-size:100% 100%;background-position:center;background-repeat:no-repeat}
+#video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:transparent;z-index:1;transform:scaleX(-1)}
+#frame{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none;z-index:2}
 button.action,.download{border:2px solid #e5bd67;border-radius:12px;background:linear-gradient(#a84625,#702719);color:#fff4d7;padding:11px 16px;min-height:46px;font-weight:800;font-size:1rem;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
 button.alt{background:linear-gradient(#587b43,#304b2c)}
 button:disabled{opacity:.5;cursor:not-allowed}
@@ -32,7 +31,6 @@ footer{color:#aebc9e;font-size:.75rem;margin-top:18px}
   <h1>CHASSE AU TRÉSOR DE BELLE ÉGLISE</h1>
   <p>Immortalise ton aventure préhistorique ! 🦖</p>
   <div class="stage" id="stage">
-    <video id="videoBg" autoplay playsinline muted aria-hidden="true"></video>
     <video id="video" autoplay playsinline muted></video>
     <img id="frame" src="cadre-chasse-tresor.png" alt="Cadre de chasse au trésor avec dinosaures">
   </div>
@@ -54,59 +52,52 @@ footer{color:#aebc9e;font-size:.75rem;margin-top:18px}
   <footer>Exploration préhistorique • Belle Église</footer>
 </main>
 <script>
-const video=document.querySelector('#video'), videoBg=document.querySelector('#videoBg'), start=document.querySelector('#start');
+const video=document.querySelector('#video'), start=document.querySelector('#start');
 const take=document.querySelector('#take'), flip=document.querySelector('#flip');
 const statusEl=document.querySelector('#status'), result=document.querySelector('#result');
 const finalImage=document.querySelector('#finalImage'), download=document.querySelector('#download');
 const frame=document.querySelector('#frame');
 let stream=null,facing='environment',photoUrl=null;
+const backdrop=new Image();backdrop.src='fond-jungle.png';
+function stopCamera(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}video.srcObject=null;}
 async function openCamera(){
   try{
     if(!navigator.mediaDevices?.getUserMedia) throw new Error('unsupported');
-    if(stream) stream.getTracks().forEach(t=>t.stop());
-    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing},width:{ideal:720},height:{ideal:1280},aspectRatio:{ideal:2/3}},audio:false});
-    video.srcObject=stream; videoBg.srcObject=stream; await Promise.all([video.play(),videoBg.play()]);
-    const track=stream.getVideoTracks()[0];
-    const settings=track.getSettings();
+    stopCamera();
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing},width:{ideal:1280},height:{ideal:720}},audio:false});
+    video.srcObject=stream; await video.play();
+    const track=stream.getVideoTracks()[0];const settings=track.getSettings();
     if(settings.facingMode) facing=settings.facingMode;
     video.style.transform=facing==='user'?'scaleX(-1)':'none';
-    videoBg.style.transform='none';
     take.disabled=false;flip.disabled=false;
     statusEl.textContent='Caméra prête ! Tu peux changer de caméra ou prendre la photo.';
   }catch(e){statusEl.textContent='La caméra ne s’ouvre pas. Autorise-la dans le navigateur et vérifie que le site utilise HTTPS.';}
 }
 start.addEventListener('click',openCamera);
 flip.addEventListener('click',async()=>{facing=facing==='user'?'environment':'user';await openCamera();});
-take.addEventListener('click',()=>{
+take.addEventListener('click',async()=>{
   if(!video.videoWidth)return;
+  if(!backdrop.complete){try{await backdrop.decode();}catch(e){statusEl.textContent='Le fond du cadre ne s’est pas chargé. Recharge la page et réessaie.';return;}}
   const w=1024,h=1536,canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
   const ctx=canvas.getContext('2d');
+  // 1) Fond jungle original sous les zones non couvertes par la photo.
+  ctx.drawImage(backdrop,0,0,w,h);
+  // 2) Photo entière, sans zoom ni déformation. Le fond jungle reste visible dans les espaces.
   const vw=video.videoWidth,vh=video.videoHeight;
-  // Conserver la photo entière sans zoom ni déformation. Les espaces restent transparents.
-  const mirrored=facing==='user';
   const contain=Math.min(w/vw,h/vh),fw=vw*contain,fh=vh*contain,fx=(w-fw)/2,fy=(h-fh)/2;
-  ctx.save();
-  if(mirrored){ctx.translate(w,0);ctx.scale(-1,1);}
-  ctx.drawImage(video,fx,fy,fw,fh);
-  ctx.restore();
-  const overlay=new Image();
-  overlay.onload=()=>{
-    ctx.drawImage(overlay,0,0,w,h);
-    canvas.toBlob(blob=>{
-      if(!blob){statusEl.textContent='Impossible de créer la photo. Réessaie.';return;}
-      if(photoUrl)URL.revokeObjectURL(photoUrl);
-      photoUrl=URL.createObjectURL(blob);finalImage.src=photoUrl;download.href=photoUrl;
-      result.style.display='block';video.style.display='none';take.disabled=true;flip.disabled=true;
-      if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
-      statusEl.textContent='Photo prise ! Enregistre-la sur ton téléphone.';
-      result.scrollIntoView({behavior:'smooth',block:'start'});
-    },'image/png');
-  };
-  overlay.onerror=()=>statusEl.textContent='Le cadre ne s’est pas chargé. Recharge la page et réessaie.';
-  overlay.src=frame.src;
+  ctx.save();if(facing==='user'){ctx.translate(w,0);ctx.scale(-1,1);}ctx.drawImage(video,fx,fy,fw,fh);ctx.restore();
+  // 3) Cadre transparent au centre au-dessus de la photo.
+  try{await frame.decode();}catch(e){}
+  ctx.drawImage(frame,0,0,w,h);
+  canvas.toBlob(blob=>{
+    if(!blob){statusEl.textContent='Impossible de créer la photo. Réessaie.';return;}
+    if(photoUrl)URL.revokeObjectURL(photoUrl);photoUrl=URL.createObjectURL(blob);finalImage.src=photoUrl;download.href=photoUrl;
+    result.style.display='block';video.style.display='none';take.disabled=true;flip.disabled=true;stopCamera();
+    statusEl.textContent='Photo prise ! Enregistre-la sur ton téléphone.';result.scrollIntoView({behavior:'smooth',block:'start'});
+  },'image/png');
 });
 document.querySelector('#again').addEventListener('click',()=>{result.style.display='none';video.style.display='block';openCamera();});
-window.addEventListener('pagehide',()=>{if(stream)stream.getTracks().forEach(t=>t.stop());if(photoUrl)URL.revokeObjectURL(photoUrl);});
+window.addEventListener('pagehide',()=>{stopCamera();if(photoUrl)URL.revokeObjectURL(photoUrl);});
 </script>
 </body>
 </html>
