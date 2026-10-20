@@ -13,7 +13,7 @@ main{width:min(100%,600px);margin:auto;padding:10px 8px 24px}
 h1{font-family:Georgia,serif;font-size:clamp(1.15rem,4.7vw,2rem);margin:4px 0 8px;color:#f7d98b;text-shadow:0 3px 0 #4b2a16}
 p{margin:4px 0 10px}
 .stage{position:relative;width:min(100%,460px);aspect-ratio:2/3;margin:0 auto 10px;overflow:hidden;isolation:isolate;background:#243b28}
-#videoBg{position:absolute;inset:-6%;width:112%;height:112%;object-fit:cover;filter:blur(22px) brightness(.72);transform:scale(1.04);}
+#videoBg{display:none}
 #video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:transparent;transform:scaleX(-1)}
 #frame{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none}
 button.action,.download{border:2px solid #e5bd67;border-radius:12px;background:linear-gradient(#a84625,#702719);color:#fff4d7;padding:11px 16px;min-height:46px;font-weight:800;font-size:1rem;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
@@ -82,18 +82,10 @@ take.addEventListener('click',()=>{
   const w=1024,h=1536,canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
   const ctx=canvas.getContext('2d');
   const vw=video.videoWidth,vh=video.videoHeight;
-  // Remplir le fond avec une version floutée, puis afficher la photo entière au premier plan.
-  // Ainsi, aucune bande verte et surtout aucun recadrage/zoom sur les visages.
+  // Fond vert uni pour les espaces, en conservant la photo entière sans zoom.
   const mirrored=facing==='user';
-  const bg=document.createElement('canvas');bg.width=w;bg.height=h;
-  const bgctx=bg.getContext('2d');
-  const cover=Math.max(w/vw,h/vh),bw=vw*cover,bh=vh*cover,bx=(w-bw)/2,by=(h-bh)/2;
-  bgctx.save();
-  if(mirrored){bgctx.translate(w,0);bgctx.scale(-1,1);}
-  bgctx.filter='blur(28px) brightness(0.72)';
-  bgctx.drawImage(video,bx,by,bw,bh);
-  bgctx.restore();
-  ctx.drawImage(bg,0,0,w,h);
+  ctx.fillStyle='#243b28';
+  ctx.fillRect(0,0,w,h);
   const contain=Math.min(w/vw,h/vh),fw=vw*contain,fh=vh*contain,fx=(w-fw)/2,fy=(h-fh)/2;
   ctx.save();
   if(mirrored){ctx.translate(w,0);ctx.scale(-1,1);}
