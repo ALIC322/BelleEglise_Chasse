@@ -13,7 +13,7 @@ main{width:min(100%,600px);margin:auto;padding:10px 8px 24px}
 h1{font-family:Georgia,serif;font-size:clamp(1.15rem,4.7vw,2rem);margin:4px 0 8px;color:#f7d98b;text-shadow:0 3px 0 #4b2a16}
 p{margin:4px 0 10px}
 .stage{position:relative;width:min(100%,460px);aspect-ratio:2/3;margin:0 auto 10px;overflow:hidden;isolation:isolate;background:#243b28}
-#video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#243b28;transform:scaleX(-1)}
+#video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#243b28;transform:scaleX(-1)}
 #frame{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none}
 button.action,.download{border:2px solid #e5bd67;border-radius:12px;background:linear-gradient(#a84625,#702719);color:#fff4d7;padding:11px 16px;min-height:46px;font-weight:800;font-size:1rem;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
 button.alt{background:linear-gradient(#587b43,#304b2c)}
@@ -79,9 +79,10 @@ take.addEventListener('click',()=>{
   const w=1024,h=1536,canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
   const ctx=canvas.getContext('2d');
   const vw=video.videoWidth,vh=video.videoHeight;
-  // Fit the complete camera image instead of aggressively cropping/zooming faces.
+  // Remplir toute la fenêtre photo : aucun bandeau vert.
+  // Le recadrage central adapte les proportions de la caméra au cadre portrait.
   ctx.fillStyle='#243b28';ctx.fillRect(0,0,w,h);
-  const scale=Math.min(w/vw,h/vh),dw=vw*scale,dh=vh*scale,dx=(w-dw)/2,dy=(h-dh)/2;
+  const scale=Math.max(w/vw,h/vh),dw=vw*scale,dh=vh*scale,dx=(w-dw)/2,dy=(h-dh)/2;
   ctx.save();if(facing==='user'){ctx.translate(w,0);ctx.scale(-1,1);}
   ctx.drawImage(video,dx,dy,dw,dh);ctx.restore();
   const overlay=new Image();
