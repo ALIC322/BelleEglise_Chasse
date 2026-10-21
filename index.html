@@ -64,11 +64,14 @@ async function openCamera(){
   try{
     if(!navigator.mediaDevices?.getUserMedia) throw new Error('unsupported');
     if(stream) stream.getTracks().forEach(t=>t.stop());
-    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing},width:{ideal:720},height:{ideal:1280},aspectRatio:{ideal:2/3}},audio:false});
-    video.srcObject=stream; await video.play();
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing},width:{ideal:1280},height:{ideal:720},resizeMode:{ideal:'none'}},audio:false});
+    video.srcObject=stream;
+    await new Promise((resolve,reject)=>{ if(video.readyState>=1) return resolve(); video.onloadedmetadata=resolve; video.onerror=reject; });
+    await video.play();
     const track=stream.getVideoTracks()[0];
     const settings=track.getSettings();
-    // Use the camera's widest available field of view when the device supports zoom controls.
+    // Android : demander le flux natif non recadré (resizeMode none) et le zoom minimal si disponible.
+    // Cela évite le recadrage supplémentaire appliqué par certains navigateurs Android.
     try {
       const caps = track.getCapabilities ? track.getCapabilities() : {};
       if (caps.zoom && Number.isFinite(caps.zoom.min)) {
