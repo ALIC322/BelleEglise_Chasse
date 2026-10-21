@@ -14,7 +14,7 @@ h1{font-family:Georgia,serif;font-size:clamp(1.15rem,4.7vw,2rem);margin:4px 0 8p
 p{margin:4px 0 10px}
 .stage{position:relative;width:min(100%,460px);aspect-ratio:2/3;margin:0 auto 10px;overflow:hidden;isolation:isolate;background:#243b28}
 #videoBg{display:none}
-#video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:transparent;transform:scaleX(-1)}
+#video{position:absolute;left:18%;top:20%;width:64%;height:67%;object-fit:cover;background:transparent;transform:scaleX(-1)}
 #frame{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none}
 button.action,.download{border:2px solid #e5bd67;border-radius:12px;background:linear-gradient(#a84625,#702719);color:#fff4d7;padding:11px 16px;min-height:46px;font-weight:800;font-size:1rem;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
 button.alt{background:linear-gradient(#587b43,#304b2c)}
@@ -89,13 +89,15 @@ take.addEventListener('click',()=>{
   const ctx=canvas.getContext('2d');
   const vw=video.videoWidth,vh=video.videoHeight;
   const mirrored=facing==='user';
-  // COVER : remplit toute l'ouverture sans bandes vertes ni déformation.
-  // Le recadrage se fait uniquement sur les bords. La caméra reste dans son orientation native.
-  const scale=Math.max(w/vw,h/vh);
+  // Dessine la vidéo dans l'ouverture du cadre (et non sur toute l'image).
+  // Cela évite le zoom excessif : le cadre masque les bords autour de l'ouverture.
+  const hole={x:w*0.18,y:h*0.20,width:w*0.64,height:h*0.67};
+  const scale=Math.max(hole.width/vw,hole.height/vh);
   const dw=vw*scale, dh=vh*scale;
+  const dx=hole.x+(hole.width-dw)/2, dy=hole.y+(hole.height-dh)/2;
   ctx.save();
   if(mirrored){ctx.translate(w,0);ctx.scale(-1,1);}
-  ctx.drawImage(video,(w-dw)/2,(h-dh)/2,dw,dh);
+  ctx.drawImage(video,dx,dy,dw,dh);
   ctx.restore();
   const overlay=new Image();
   overlay.onload=()=>{
