@@ -67,6 +67,14 @@ async function openCamera(){
     stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing},width:{ideal:720},height:{ideal:1280},aspectRatio:{ideal:2/3}},audio:false});
     video.srcObject=stream; await video.play();
     const track=stream.getVideoTracks()[0];
+    // Réduire le zoom matériel si le navigateur et la caméra l'autorisent.
+    // Le cadrage du cadre et la composition de la photo restent inchangés.
+    try {
+      const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+      if (capabilities.zoom && Number.isFinite(capabilities.zoom.min)) {
+        await track.applyConstraints({ advanced: [{ zoom: capabilities.zoom.min }] });
+      }
+    } catch (_) { /* Le zoom n'est pas réglable sur tous les téléphones. */ }
     const settings=track.getSettings();
     if(settings.facingMode) facing=settings.facingMode;
     video.style.transform=facing==='user'?'scaleX(-1)':'none';
