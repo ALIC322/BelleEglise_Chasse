@@ -78,26 +78,28 @@ async function openCamera(){
 start.addEventListener('click',openCamera);
 flip.addEventListener('click',async()=>{facing=facing==='user'?'environment':'user';await openCamera();});
 take.addEventListener('click',()=>{
-  if(!video.videoWidth)return;
+  if(!video.videoWidth || !video.videoHeight)return;
   const w=1024,h=1536,canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
   const ctx=canvas.getContext('2d');
   const vw=video.videoWidth,vh=video.videoHeight;
-  // Remplir le fond avec une version floutée, puis afficher la photo entière au premier plan.
-  // Ainsi, aucune bande verte et surtout aucun recadrage/zoom sur les visages.
   const mirrored=facing==='user';
-  const bg=document.createElement('canvas');bg.width=w;bg.height=h;
-  const bgctx=bg.getContext('2d');
-  const cover=Math.max(w/vw,h/vh),bw=vw*cover,bh=vh*cover,bx=(w-bw)/2,by=(h-bh)/2;
-  bgctx.save();
-  if(mirrored){bgctx.translate(w,0);bgctx.scale(-1,1);}
-  bgctx.filter='blur(28px) brightness(0.72)';
-  bgctx.drawImage(video,bx,by,bw,bh);
-  bgctx.restore();
-  ctx.drawImage(bg,0,0,w,h);
-  const contain=Math.min(w/vw,h/vh)*1.035,fw=vw*contain,fh=vh*contain,fx=(w-fw)/2,fy=(h-fh)/2;
+  // iPhone/Safari peut fournir une image paysage même lorsque le téléphone est tenu verticalement.
+  // On la tourne alors en portrait avant de la placer dans le cadre, pour éviter les bandes dupliquées.
+  const rotate=(vw>vh && h>w);
+  const srcW=rotate?vh:vw, srcH=rotate?vw:vh;
+  const contain=Math.min(w/srcW,h/srcH);
+  const dw=srcW*contain, dh=srcH*contain;
+  const dx=(w-dw)/2, dy=(h-dh)/2;
   ctx.save();
-  if(mirrored){ctx.translate(w,0);ctx.scale(-1,1);}
-  ctx.drawImage(video,fx,fy,fw,fh);
+  if(rotate){
+    ctx.translate(w/2,h/2);
+    if(mirrored) ctx.scale(-1,1);
+    ctx.rotate(Math.PI/2);
+    ctx.drawImage(video,-dh/2,-dw/2,dh,dw);
+  } else {
+    if(mirrored){ctx.translate(w,0);ctx.scale(-1,1);}
+    ctx.drawImage(video,dx,dy,dw,dh);
+  }
   ctx.restore();
   const overlay=new Image();
   overlay.onload=()=>{
